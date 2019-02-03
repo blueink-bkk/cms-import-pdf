@@ -33,6 +33,7 @@ const host = argv.host || process.env.PGHOST || 'inhelium.com';
 const port = argv.port || process.env.PGPORT || '5432';
 const database = argv.database || process.env.PGDATABASE || 'cms-oacs';
 const user = argv.user || process.env.PGUSER || 'postgres';
+const maxf = argv.maxf || 99999;
 
 argv.dir = argv.dir || process.env.pdfdir;
 
@@ -105,7 +106,7 @@ function *walkSync(dir,patterns) {
 const root_folder = argv.dir;
 let nfiles =0;
 
-
+let db;
 Massive({
   host,
   port,
@@ -113,7 +114,8 @@ Massive({
   user,
   password
 })
-.then(async db =>{
+.then(async _db =>{
+  db = _db;
   const npages = await main(db);
   console.log(`closing db...`)
   db.pgp.end();
@@ -228,7 +230,7 @@ async function main(db) {
 
   for (const fn of walkSync(root_folder, ['\.pdf$'])) {
     nfiles ++;
-    if (nfiles >13) break;
+    if (nfiles >=maxf) break;
 
     const doc = await pdfjsLib.getDocument(fn)
     const baseName = path.basename(fn);
@@ -283,7 +285,7 @@ async function main(db) {
             console.log(`-- pdf ${baseName}##${pageNo} =>retv:`,retv.pdf_page__commit)
           } else {
             if (verbose) {
-              console.log(`--SUCCESS pdf_page_commit ${baseName}##${pageNo} revision_id:${retv.pdf_page__commit.revision_id}`,)
+              console.log(`--SUCCESS pdf_page_commit ${baseName}##${pageNo} revision_id:${retv.pdf_page__commit.revision_id}`)
               console.log(`-- pdf ${baseName}##${pageNo} =>retv:`,retv.pdf_page__commit)
             }
           }
