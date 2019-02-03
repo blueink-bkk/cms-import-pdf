@@ -1,0 +1,26 @@
+{
+  "name": "upload-museum-v2",
+  "version": "1.0.0",
+  "description": "",
+  "main": "upload-museum-v2.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blueink-bkk/upload-museum-v2.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/blueink-bkk/upload-museum-v2/issues"
+  },
+  "homepage": "https://github.com/blueink-bkk/upload-museum-v2#readme",
+  "dependencies": {
+    "jsonfile": "^5.0.0",
+    "massive": "^5.7.4",
+    "pdfjs-dist": "^2.0.943",
+    "pg-monitor": "^1.1.0",
+    "yargs": "^12.0.5"
+  }
+}
