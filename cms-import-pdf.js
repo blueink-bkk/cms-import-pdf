@@ -22,12 +22,12 @@ const argv = require('yargs')
   .alias('f','file')
   .alias('d','dir')
   .alias('a','all')
-  .alias('v','verbose')
-//  .alias('u','upload')
+  .alias('v','verbose').count('verbose')
   .options({
     'commit': {default:true},
   }).argv;
 
+const verbose = argv.verbose;
 const password = argv.password || process.env.PGPASSWORD;
 const host = argv.host || process.env.PGHOST || 'inhelium.com';
 const port = argv.port || process.env.PGPORT || '5432';
@@ -105,14 +105,37 @@ function *walkSync(dir,patterns) {
 const root_folder = argv.dir;
 let nfiles =0;
 
-async function main() {
+
+Massive({
+  host,
+  port,
+  database,
+  user,
+  password
+})
+.then(async db =>{
+  const npages = await main(db);
+  console.log(`closing db...`)
+  db.pgp.end();
+  console.log(`EXIT Ok.`)
+})
+.catch(err=>{
+  console.log(`FATAL-121 err:`,err);
+  db.pgp.end();
+})
+
+
+
+
+async function main(db) {
+  /*
   const db = await Massive({
     host,
     port,
     database,
     user,
     password
-  });
+  });*/
 
   const monitor_options = {
     query(e) {
@@ -131,11 +154,23 @@ async function main() {
         monitor.notice(err, e); // monitor the event;
     },
   };
-  monitor.attach(db.driverConfig);
-//  monitor.attach(monitor_options);
-  console.log(`pg-monitor attached-Ok.`);
-  console.log('Massive is ready.');
+  if (verbose) {
+    monitor.attach(db.driverConfig);
+    //  monitor.attach(monitor_options);
+    console.log(`pg-monitor attached-Ok.`);
+  }
 
+  console.log('Massive is ready.');
+  if (true || verbose) {
+    console.log(`
+      host:${host}
+      port:${port}
+      database:${database}
+      user:${user}
+      password:${password}
+      appInstance:'cms-236393'
+      `)
+  }
   // ------------------------------------------------------------------------
 
   const retv1 = await db.query(`
@@ -146,7 +181,9 @@ async function main() {
   _assert(package_id, retv1, 'Missing package_id')
   _assert(folder_id, retv1, 'Missing folder_id')
 
-  console.log(`found package_id:${package_id} folder_id:${folder_id} retv1:`,retv1)
+  if (verbose) {
+    console.log(`found package_id:${package_id} folder_id:${folder_id} retv1:`,retv1)
+  }
 
   if (argv['create-pdf-root']) {
     const retv3 = await db.query(`
@@ -196,7 +233,9 @@ async function main() {
     const doc = await pdfjsLib.getDocument(fn)
     const baseName = path.basename(fn);
     const dirname = path.dirname(fn);
-    console.log(`[${nfiles}] npages:${doc.numPages} <${fn}> `);
+    if (true || verbose)
+      console.log(`[${nfiles}] npages:${doc.numPages} <${fn}> `);
+
     const retv3 = await db.query(`
       select * from cms_revision__commit($1)
       `,[{
@@ -204,7 +243,7 @@ async function main() {
       title: baseName,
       item_subtype: 'pdf_file',
       package_id,
-      name: utils.nor_au2(baseName),
+      name: nor_au2(baseName),
       data: {
         dirname, // origin folder - just for infos.
       },
@@ -212,14 +251,13 @@ async function main() {
     }], {single:true});
 
 
-    console.log(`retv3:`,retv3)
+
+    if (verbose) console.log(`retv3:`,retv3)
     _assert(retv3, retv3, 'Invalid cr_item1')
     _assert(retv3.cms_revision__commit, retv3, 'Invalid cr_item2')
 
     const {item_id, revision_id} = retv3.cms_revision__commit;
     _assert(item_id && revision_id, retv3, 'Invalid cr_item')
-
-
 
     for (let pageNo=1; pageNo <=doc.numPages; pageNo++) {
       const page = await doc.getPage(pageNo);
@@ -244,8 +282,10 @@ async function main() {
           if (retv.error) {
             console.log(`-- pdf ${baseName}##${pageNo} =>retv:`,retv.pdf_page__commit)
           } else {
-            console.log(`--SUCCESS pdf_page_commit ${baseName}##${pageNo} revision_id:${retv.pdf_page__commit.revision_id}`,)
-            console.log(`-- pdf ${baseName}##${pageNo} =>retv:`,retv.pdf_page__commit)
+            if (verbose) {
+              console.log(`--SUCCESS pdf_page_commit ${baseName}##${pageNo} revision_id:${retv.pdf_page__commit.revision_id}`,)
+              console.log(`-- pdf ${baseName}##${pageNo} =>retv:`,retv.pdf_page__commit)
+            }
           }
         }
         catch(err) {
@@ -275,15 +315,18 @@ String.prototype.RemoveAccents = function () {
  return strAccentsOut;
 }
 
-
+/***
 main(argv)
 .then((npages)=>{
   console.log('done npages:',npages);
+  db.pgp.end();
 })
 .catch (err => {
   console.log(`catching error:`,err)
   throw err
 })
+
+***/
 
 function _assert(b, o, err_message) {
   if (!b) {
